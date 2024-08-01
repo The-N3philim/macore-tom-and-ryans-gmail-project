@@ -7,7 +7,7 @@ const { PDFDocument } = require('pdf-lib');
 
 const ROOT_DIR = '//macorebx/CLIENT-FILES/'
 const ORDER_LOG_PATH = path.join(__dirname, "/Logs/OrderNumberLog.txt");
-const STANDARD_ORDER_TYPES = ["inventory check", "date assignment", "outside service alert", "quote request", "research request", "photo request", "labels for review", "coh change request", "revised order paperwork", "stringing pre-schedule", "call tag request", "samples request", "shipping/freight request", "check received", "credit memo", "watchlist", "credit to invoice client"]
+const STANDARD_ORDER_TYPES = ["inventory check", "lead time", "date assignment", "outside service alert", "quote request", "research request", "photo request", "labels for review", "coh change request", "revised order paperwork", "stringing pre-schedule", "call tag request", "samples request", "shipping/freight request", "check received", "credit memo", "watchlist", "credit to invoice client"]
 const CSR_CLIENT_ORDER_TYPES = ["macore label order", "order status inquiry", "client order history"];
 let gmail;
 let currentSubjectLine = "";
@@ -286,7 +286,12 @@ async function convertToPDF_withHeader(emailBody, emailMetadata, savePath, id, p
   const page = await browser.newPage();
 
   emailBody = await convertCIDtoBase64(emailBody, id, parts);
-  const fullHTMLContent = createHTMLContent(emailMetadata, emailBody);
+  var fullHTMLContent = createHTMLContent(emailMetadata, emailBody);
+
+  while(fullHTMLContent.includes("<!--")){
+    fullHTMLContent = removeSubstringBasedOnStartAndEnd(fullHTMLContent, "<!--", "-->");
+  }
+
   await page.setContent(fullHTMLContent);
   await addCSSStyle(page);
 
@@ -300,11 +305,18 @@ async function convertToPDF_withHeader(emailBody, emailMetadata, savePath, id, p
 
   if (savePath) {
     await fs.writeFileSync(savePath, modifiedPdfBytes);
+
     console.log(`Email saved as ${savePath}`);
   }
 
   await browser.close();
   return pdfBuffer;
+}
+
+function removeSubstringBasedOnStartAndEnd(string, subStringStart, subStringEnd){
+  var firstPart = string.split(subStringStart)[0];
+  var secondPart = string.substring(string.indexOf(subStringEnd)+subStringEnd.length);
+  return firstPart + secondPart;
 }
 
 function createHTMLContent(emailMetadata, emailBody) {
@@ -326,11 +338,16 @@ function createHTMLContent(emailMetadata, emailBody) {
 async function addCSSStyle(page) {
   const cssContent = `
     .email-header {
-      margin: 5px 0;
-      line-height: 0.1;
+      margin: 5px;
+      line-height: 1.2;
+      font-family: arial;
+      border-spacing: 2;
     }
     .email-body {
-      /* Add styles for email body */
+    }
+
+    .email-header p {
+      margin: 10px;
     }
   `;
   await page.addStyleTag({ content: cssContent });
